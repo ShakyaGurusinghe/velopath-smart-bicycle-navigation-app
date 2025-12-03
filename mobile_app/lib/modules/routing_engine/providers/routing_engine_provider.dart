@@ -1,4 +1,5 @@
 // lib/modules/routing_engine/providers/routing_engine_provider.dart
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -12,10 +13,10 @@ import 'package:latlong2/latlong.dart';
 
 import '../../../data/models/route_model.dart';
 
-/// Which type of route the user wants
+/// Route types
 enum RouteProfile { shortest, safest, scenic, balanced }
 
-/// Suggestion model (from Geoapify)
+/// Suggestion from Geoapify
 class PlaceSuggestion {
   final String name;
   final double lat;
@@ -28,7 +29,7 @@ class PlaceSuggestion {
   });
 }
 
-/// One colored segment of the route (for map styling)
+/// A colored map segment
 class ColoredSegment {
   final List<LatLng> points;
   final Color color;
@@ -39,11 +40,11 @@ class ColoredSegment {
   });
 }
 
-/// Simple turn-by-turn instruction
+/// Navigation instruction
 class TurnInstruction {
-  final String text;            // "Turn left", "Continue straight", etc.
-  final double distanceMeters;  // distance from previous instruction
-  final LatLng location;        // where this instruction happens
+  final String text;
+  final double distanceMeters;
+  final LatLng location;
 
   TurnInstruction({
     required this.text,
@@ -57,14 +58,72 @@ class RoutingEngineProvider extends ChangeNotifier {
   // CONFIG
   // =======================
 
-  /// Your backend server (make sure this matches your Mac IP)
-  static const String _backendBaseUrl = 'http://192.168.114.184:5001';
-
-  /// Geoapify API Key
+  static const String _backendBaseUrl = "http://192.168.8.176:5001";
   static const String geoapifyKey = "32bb4486a6864bbbb20904ff39d832ca";
 
   // =======================
-  // OLD LIST VIEW
+  // STATE
+  // =======================
+
+  LatLng? _startPoint;
+  LatLng? _endPoint;
+
+  LatLng? get startPoint => _startPoint;
+  LatLng? get endPoint => _endPoint;
+
+  List<PlaceSuggestion> _startSuggestions = [];
+  List<PlaceSuggestion> _endSuggestions = [];
+
+  List<PlaceSuggestion> get startSuggestions => _startSuggestions;
+  List<PlaceSuggestion> get endSuggestions => _endSuggestions;
+
+  List<LatLng> _routePoints = [];
+  List<LatLng> get routePoints => _routePoints;
+
+  List<ColoredSegment> _segments = [];
+  List<ColoredSegment> get segments => _segments;
+
+  List<Polyline> get coloredPolylines =>
+      _segments.map((s) => Polyline(points: s.points, color: s.color, strokeWidth: 5)).toList();
+
+  RouteProfile _activeProfile = RouteProfile.balanced;
+  RouteProfile get activeProfile => _activeProfile;
+
+  // Summary
+  double _totalDistanceKm = 0;
+  int _totalHazards = 0;
+  double _avgPoiScore = 0;
+
+  double get totalDistanceKm => _totalDistanceKm;
+  int get totalHazards => _totalHazards;
+  double get avgPoiScore => _avgPoiScore;
+
+  // Navigation
+  bool _isNavigating = false;
+  bool get isNavigating => _isNavigating;
+
+  LatLng? _currentLocation;
+  LatLng? get currentLocation => _currentLocation;
+
+  double _heading = 0.0;
+  double get heading => _heading;
+
+  List<TurnInstruction> _instructions = [];
+  List<TurnInstruction> get instructions => _instructions;
+
+  int _currentInstructionIndex = 0;
+  int get currentInstructionIndex => _currentInstructionIndex;
+
+  TurnInstruction? get currentInstruction =>
+      _instructions.isEmpty ? null : _instructions[_currentInstructionIndex];
+
+  StreamSubscription<Position>? _positionSub;
+
+  bool _isRouting = false;
+  bool get isRouting => _isRouting;
+
+  // =======================
+  // OLD LIST VIEW (optional screen)
   // =======================
 
   List<RouteModel> _routes = [];
@@ -101,80 +160,7 @@ class RoutingEngineProvider extends ChangeNotifier {
   }
 
   // =======================
-  // MAP ROUTING STATE
-  // =======================
-
-  RouteProfile _activeProfile = RouteProfile.balanced;
-  RouteProfile get activeProfile => _activeProfile;
-
-  LatLng? _startPoint;
-  LatLng? _endPoint;
-
-  LatLng? get startPoint => _startPoint;
-  LatLng? get endPoint => _endPoint;
-
-  // Suggestions
-  List<PlaceSuggestion> _startSuggestions = [];
-  List<PlaceSuggestion> _endSuggestions = [];
-
-  List<PlaceSuggestion> get startSuggestions => _startSuggestions;
-  List<PlaceSuggestion> get endSuggestions => _endSuggestions;
-
-  // Route geometry (all points, for centering map etc.)
-  List<LatLng> _routePoints = [];
-  List<LatLng> get routePoints => _routePoints;
-
-  // Color-coded segments
-  List<ColoredSegment> _segments = [];
-  List<ColoredSegment> get segments => _segments;
-
-  /// Polylines ready for FlutterMap
-  List<Polyline> get coloredPolylines => _segments
-      .map(
-        (s) => Polyline(
-          points: s.points,
-          color: s.color,
-          strokeWidth: 5,
-        ),
-      )
-      .toList();
-
-  double _totalDistanceKm = 0.0;
-  int _totalHazards = 0;
-  double _avgPoiScore = 0.0;
-
-  double get totalDistanceKm => _totalDistanceKm;
-  int get totalHazards => _totalHazards;
-  double get avgPoiScore => _avgPoiScore;
-
-  bool _isRouting = false;
-  bool get isRouting => _isRouting;
-
-  // =======================
-  // NAVIGATION STATE
-  // =======================
-
-  bool _isNavigating = false;
-  bool get isNavigating => _isNavigating;
-
-  List<TurnInstruction> _instructions = [];
-  List<TurnInstruction> get instructions => _instructions;
-
-  int _currentInstructionIndex = 0;
-  int get currentInstructionIndex => _currentInstructionIndex;
-
-  TurnInstruction? get currentInstruction =>
-      (_instructions.isEmpty || _currentInstructionIndex >= _instructions.length)
-          ? null
-          : _instructions[_currentInstructionIndex];
-
-  LatLng? _currentLocation;
-  LatLng? get currentLocation => _currentLocation;
-
-  StreamSubscription<Position>? _positionSub;
-
-  // =======================
-  // Set Profile
+  // PROFILE SELECTION
   // =======================
 
   Future<void> setProfile(RouteProfile profile) async {
@@ -231,12 +217,12 @@ class RoutingEngineProvider extends ChangeNotifier {
       }
 
       final data = jsonDecode(response.body);
-      List features = data["features"] ?? [];
+      final features = data["features"] as List? ?? [];
 
-      List<PlaceSuggestion> out = [];
+      final out = <PlaceSuggestion>[];
 
-      for (var f in features) {
-        final p = f["properties"];
+      for (final f in features) {
+        final p = f["properties"] ?? {};
         out.add(
           PlaceSuggestion(
             name: p["formatted"] ?? p["address_line1"] ?? "Unknown place",
@@ -293,7 +279,6 @@ class RoutingEngineProvider extends ChangeNotifier {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Check service
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (kDebugMode) {
@@ -302,7 +287,6 @@ class RoutingEngineProvider extends ChangeNotifier {
       return;
     }
 
-    // Check permission
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -321,7 +305,6 @@ class RoutingEngineProvider extends ChangeNotifier {
       return;
     }
 
-    // Get location
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,
     );
@@ -361,13 +344,14 @@ class RoutingEngineProvider extends ChangeNotifier {
   Future<void> stopNavigation() async {
     _isNavigating = false;
     _currentLocation = null;
+    _heading = 0;
     await _positionSub?.cancel();
     _positionSub = null;
     notifyListeners();
   }
 
   Future<void> _startListeningToPosition() async {
-    LocationPermission permission = await Geolocator.checkPermission();
+    var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
@@ -383,19 +367,28 @@ class RoutingEngineProvider extends ChangeNotifier {
     _positionSub?.cancel();
     _positionSub = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 5, // meters before update
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 3,
       ),
     ).listen(_onPositionUpdate);
   }
 
   void _onPositionUpdate(Position pos) {
-    _currentLocation = LatLng(pos.latitude, pos.longitude);
+    final newLocation = LatLng(pos.latitude, pos.longitude);
 
-    // advance instruction when close to its location
+    // heading
+    if (pos.heading != null && pos.heading >= 0) {
+      _heading = pos.heading;
+    } else if (_currentLocation != null) {
+      _heading = _bearing(_currentLocation!, newLocation);
+    }
+
+    _currentLocation = newLocation;
+
+    // advance instruction when close
     if (_isNavigating &&
         _instructions.isNotEmpty &&
-        _currentInstructionIndex < _instructions.length) {
+        _currentInstructionIndex < _instructions.length - 1) {
       final currInstr = _instructions[_currentInstructionIndex];
       final d = Distance();
       final distToInstr = d.as(
@@ -404,8 +397,7 @@ class RoutingEngineProvider extends ChangeNotifier {
         currInstr.location,
       );
 
-      if (distToInstr < 30 &&
-          _currentInstructionIndex < _instructions.length - 1) {
+      if (distToInstr < 30) {
         _currentInstructionIndex++;
       }
     }
@@ -537,14 +529,14 @@ class RoutingEngineProvider extends ChangeNotifier {
 
       final json = jsonDecode(response.body);
 
-      // ---------- Summary ----------
-      final summary = json["summary"];
+      // ---- summary ----
+      final summary = json["summary"] ?? {};
       _totalDistanceKm =
           (summary["totalDistanceKm"] as num?)?.toDouble() ?? 0.0;
       _totalHazards = (summary["totalHazard"] as num?)?.toInt() ?? 0;
       _avgPoiScore = (summary["avgPoiScore"] as num?)?.toDouble() ?? 0.0;
 
-      // ---------- Edges (color-coded) ----------
+      // ---- edges ----
       final edges = json["edges"] as List<dynamic>? ?? [];
 
       final allPoints = <LatLng>[];
@@ -569,7 +561,6 @@ class RoutingEngineProvider extends ChangeNotifier {
 
         if (segPoints.isEmpty) continue;
 
-        // Read hazard & POI values for this edge
         final num hazardCountRaw =
             (edge["hazardCount"] ??
                     edge["hazard_count"] ??
@@ -583,32 +574,26 @@ class RoutingEngineProvider extends ChangeNotifier {
 
         Color color;
 
-        // Base on hazard
         if (hazardCount >= 5) {
-          // high risk
-          color = const Color(0xFFE53935); // red
+          color = const Color(0xFFE53935); // high
         } else if (hazardCount >= 2) {
-          // medium risk
-          color = const Color(0xFFFFA726); // orange
+          color = const Color(0xFFFFA726); // medium
         } else {
-          // low risk / safe
-          color = const Color(0xFF43A047); // green
+          color = const Color(0xFF43A047); // low
         }
 
-        // Scenic override
-        if (poiScore > 0 && poiScore >= 0.6) {
-          color = const Color(0xFF1E88E5); // blue for scenic
+        // scenic override
+        if (poiScore >= 0.6) {
+          color = const Color(0xFF1E88E5);
         }
 
-        segments.add(
-          ColoredSegment(points: segPoints, color: color),
-        );
+        segments.add(ColoredSegment(points: segPoints, color: color));
       }
 
       _routePoints = allPoints;
       _segments = segments;
 
-      // build instructions for navigation
+      // build instructions
       _buildTurnInstructions();
     } catch (e) {
       if (kDebugMode) {

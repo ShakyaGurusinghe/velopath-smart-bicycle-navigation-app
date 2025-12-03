@@ -377,7 +377,7 @@ class RoutingEngineProvider extends ChangeNotifier {
     final newLocation = LatLng(pos.latitude, pos.longitude);
 
     // heading
-    if (pos.heading != null && pos.heading >= 0) {
+    if (pos.heading >= 0) {
       _heading = pos.heading;
     } else if (_currentLocation != null) {
       _heading = _bearing(_currentLocation!, newLocation);
@@ -439,8 +439,12 @@ class RoutingEngineProvider extends ChangeNotifier {
       var angle = bearing2 - bearing1;
 
       // normalize to -180..180
-      while (angle > 180) angle -= 360;
-      while (angle < -180) angle += 360;
+      while (angle > 180) {
+        angle -= 360;
+      }
+      while (angle < -180) {
+        angle += 360;
+      }
 
       String? text;
 

@@ -19,6 +19,8 @@
     "express": "^5.1.0",
     "multer": "^2.0.2",
     "multer-s3": "^3.0.1",
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.16.3"
     
   },

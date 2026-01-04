@@ -2,7 +2,10 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import authRoutes from "./routes/auth/auth.routes.js";
+import authRoutes from "./routes/auth/auth.routes.js"
+
+import cron from "node-cron";
+
 import poiRoutes from "./routes/poiRoutes.js";
 import routingRoutes from "./routes/routingRoutes.js"; // ✅ for /api/routing/generate
 import pgRoutingRoutes from "./routes/routing.js";      // ✅ for /api/routing/route

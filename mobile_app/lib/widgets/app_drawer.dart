@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_app/modules/routing_engine/screens/routing_engine_test_screen.dart';
 import 'package:mobile_app/screens/auth/login_screen.dart';
 import 'package:mobile_app/screens/dashboard_screen.dart';
+import 'package:mobile_app/screens/view_poi_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -38,11 +39,12 @@ class AppDrawer extends StatelessWidget {
             },
           ),
 
+          
           // PROFILE → null (no screen yet)
           const ListTile(
             leading: Icon(Icons.person),
             title: Text("Profile"),
-            onTap: null, // no screen yet
+            onTap: null,
           ),
 
           // MAP → Routing Engine Test
@@ -58,6 +60,19 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
+        
+        // POIs 
+          ListTile(
+            leading: const Icon(Icons.emoji_nature),
+            title: const Text("Places"),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const POIsScreen()),
+              );
+            },
+          ),
+
 
           // SETTINGS → null
           const ListTile(
@@ -66,6 +81,7 @@ class AppDrawer extends StatelessWidget {
             onTap: null,
           ),
 
+          // LOGOUT
           ListTile(
             leading: const Icon(Icons.logout),
             title: const Text("Log out"),

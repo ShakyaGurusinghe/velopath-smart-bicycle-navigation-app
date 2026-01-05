@@ -38,9 +38,28 @@ app.use("/api/pg-routing", pgRoutingRoutes);
 app.get("/health", async (req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.json({ status: "healthy", database: "connected" });
+    res.json({ 
+      status: "healthy", 
+      database: "connected",
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     res.status(500).json({ status: "unhealthy", error: error.message });
+  }
+});
+
+// NEW: Stats endpoint
+app.get("/api/stats", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM system_stats");
+    res.json({
+      success: true,
+      stats: result.rows[0],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("[API] Error fetching stats:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -90,7 +109,18 @@ app.post("/api/admin/run-decay", async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("=".repeat(60));
+  console.log("🚀 Hazard Verification API Server Started");
+  console.log("=".repeat(60));
+  console.log(`📡 Server running on: http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`📈 Stats: http://localhost:${PORT}/api/stats`);
   console.log(`🗺️  Hazards API: http://localhost:${PORT}/api/hazards`);
+  console.log(`⚙️  Manual process: POST http://localhost:${PORT}/api/admin/process-detections`);
+  console.log(`⚙️  Manual decay: POST http://localhost:${PORT}/api/admin/run-decay`);
+  console.log("=".repeat(60));
+  console.log("⏰ Cron jobs scheduled:");
+  console.log("   - Detection processing: Every 30 seconds");
+  console.log("   - Decay mechanism: Every 6 hours");
+  console.log("=".repeat(60));
 });

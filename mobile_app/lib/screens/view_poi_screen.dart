@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../widgets/device_helper.dart';
 
+
+
 class POIsScreen extends StatefulWidget {
   final String title;
   const POIsScreen({super.key, this.title = "Places to View"});

@@ -1132,4 +1132,4 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 | **Component 1** | ML-based Hazard Detection | Gayasri Pethum | IT22031266 |
 | **Component 2** | Hazard Verification System | Nisal Mallawaarachchi | IT22899538|
 | **Component 3** | Multi-Objective Route Generation Engine | Shakya K. Gurusinghe| IT22893352 |
-| **Component 3** | Multi-Objective Route Generation Engine | Thiruni Jayasinghe| IT22341990 |
+| **Component 4** | Gamified Discovery of Local Points-of-Interest (POI) | Thiruni Jayasinghe| IT22341990 |

@@ -224,8 +224,7 @@ class _POIDetailsScreenState extends State<POIDetailsScreen> {
             if (imageUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  "http://10.75.197.44:5001$imageUrl",
+                child: Image.network(imageUrl,
                   height: 200,
                   width: double.infinity,
                   fit: BoxFit.cover,

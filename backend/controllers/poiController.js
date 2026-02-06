@@ -9,7 +9,7 @@ export const addPOI = async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const imageUrl = req.file ? req.file.path : null;
 
     await pool.query(
       `INSERT INTO custom_pois

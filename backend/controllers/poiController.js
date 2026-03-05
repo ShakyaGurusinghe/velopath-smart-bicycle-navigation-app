@@ -33,7 +33,7 @@ export const addPOI = async (req, res) => {
   }
 };
 
-// Get all POIs 
+// Get all POIs (unranked — kept for backward compatibility)
 export const getPOIs = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -79,7 +79,7 @@ export const getPOIs = async (req, res) => {
   }
 };
 
-
+// Get single POI details
 export const getPOIDetails = async (req, res) => {
   try {
     const { id } = req.params;
@@ -137,7 +137,7 @@ export const votePOI = async (req, res) => {
       }
     }
 
-    // ---------- Fetch POI ----------
+    // Fetch POI
     const poiResult = await pool.query(
       `SELECT score, vote_count, voted_devices
        FROM custom_pois
@@ -165,14 +165,13 @@ export const votePOI = async (req, res) => {
       });
     }
 
-    // ---------- Calculate new score ----------
+    // Calculate new score
     const newCount = currentCount + 1;
-    const newScore =
-      ((currentScore * currentCount) + percentage) / newCount;
+    const newScore = ((currentScore * currentCount) + percentage) / newCount;
 
     devices.push(deviceId);
 
-    // ---------- Update POI ----------
+    // Update POI
     await pool.query(
       `UPDATE custom_pois
        SET score = $1,
@@ -191,7 +190,6 @@ export const votePOI = async (req, res) => {
       [deviceId]
     );
 
-    // ---------- Response ----------
     res.json({
       message: "Vote submitted successfully",
       score: newScore,
@@ -247,7 +245,6 @@ export const addComment = async (req, res) => {
     const { id } = req.params;
     const { comment, deviceId } = req.body;
 
-    // Validation
     if (!comment || !deviceId) {
       return res.status(400).json({
         success: false,
@@ -269,7 +266,6 @@ export const addComment = async (req, res) => {
       });
     }
 
-    // Insert comment
     const result = await pool.query(
       `INSERT INTO poi_comments (poi_id, device_id, comment) 
        VALUES ($1, $2, $3) 
@@ -291,4 +287,3 @@ export const addComment = async (req, res) => {
     });
   }
 };
-

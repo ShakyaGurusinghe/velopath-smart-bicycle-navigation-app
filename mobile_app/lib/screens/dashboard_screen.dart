@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../routes/app_routes.dart';
@@ -30,14 +31,33 @@ class _DashboardContentState extends State<DashboardContent> {
   int loyaltyPoints = 0;
   int poiCount = 0;
 
+  Timer? _dashboardTimer;
+
   @override
   void initState() {
     super.initState();
     loadDashboard();
+
+    _dashboardTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => loadDashboard(),
+    );
   }
 
+  @override
+  void dispose() {
+    _dashboardTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> incrementLoyalty(int points) async {
+  setState(() {
+    loyaltyPoints += points;
+  });
+}
   Future<void> loadDashboard() async {
     final deviceId = await getDeviceId();
+
     try {
       final res = await http.get(
         Uri.parse("http://192.168.8.118:5001/api/dashboard/$deviceId"),

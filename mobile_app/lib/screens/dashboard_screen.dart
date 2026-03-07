@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
-import '../routes/app_routes.dart';
-import '../widgets/app_drawer.dart';
-import '../widgets/bottom_nav.dart';
-import '../widgets/device_helper.dart';
-import 'dart:convert';
+import 'dart:async';
+import 'package:flutter/material.dart'; 
+import '../routes/app_routes.dart'; 
+import '../widgets/app_drawer.dart'; 
+import '../widgets/bottom_nav.dart'; 
+import '../widgets/device_helper.dart'; 
+import 'dart:convert'; 
 import 'package:http/http.dart' as http;
-
+import '../config/api_config.dart';
 
 
 class DashboardScreen extends StatefulWidget {
@@ -20,25 +21,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int loyaltyPoints = 0;
   int poiCount = 0;
 
+  Timer? _dashboardTimer;
+
   @override
   void initState() {
     super.initState();
-    loadDashboard(); 
+    loadDashboard();
+
+    _dashboardTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => loadDashboard(),
+    );
   }
 
+  @override
+  void dispose() {
+    _dashboardTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> incrementLoyalty(int points) async {
+  setState(() {
+    loyaltyPoints += points;
+  });
+}
   Future<void> loadDashboard() async {
     final deviceId = await getDeviceId();
 
     final res = await http.get(
-      Uri.parse("http://192.168.8.191:5001/api/dashboard/$deviceId"),
+      Uri.parse(ApiConfig.dashboard(deviceId))
     );
 
     if (res.statusCode == 200) {
       final data = jsonDecode(res.body);
-      setState(() {
-        loyaltyPoints = data["loyaltyPoints"];
-        poiCount = data["poiCount"];
-      });
+
+      if (loyaltyPoints != data["loyaltyPoints"] ||
+          poiCount != data["poiCount"]) {
+        setState(() {
+          loyaltyPoints = data["loyaltyPoints"];
+          poiCount = data["poiCount"];
+        });
+      }
     }
   }
 
@@ -112,14 +135,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: const [
                   Row(
                     children: [
-                      Text("Welcome",
-                          style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold)),
-                      Text("👋", style: TextStyle(fontSize: 22)),
+                      Text(
+                        "Welcome",
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(" 👋", style: TextStyle(fontSize: 22)),
                     ],
                   ),
                   SizedBox(height: 6),
-                  Text("Let's Get You Started With VeloPath",
-                      style: TextStyle(fontSize: 14, color: Colors.white)),
+                  Text(
+                    "Let's Get You Started With VeloPath",
+                    style: TextStyle(fontSize: 14, color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -137,10 +168,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(getGreeting(),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  Text(getFormattedTime(),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    getGreeting(),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    getFormattedTime(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -152,7 +193,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color.fromARGB(255, 152, 210, 224)),
+                border: Border.all(
+                  color: const Color.fromARGB(255, 152, 210, 224),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,12 +203,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Loyalty",
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text("$loyaltyPoints points",
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Text(
+                        "Loyalty",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        "$loyaltyPoints points",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
+
                   const SizedBox(height: 10),
 
                   LinearProgressIndicator(
@@ -176,7 +230,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
 
                   const SizedBox(height: 8),
-                  const Text("Click for details"),
+                  //Text("POIs added: $poiCount"),
                 ],
               ),
             ),

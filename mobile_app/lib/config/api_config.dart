@@ -1,5 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = "http://10.255.73.44:5001";
+  static const String baseUrl = "http://10.134.150.59:5001";
 
   static const String pois = "$baseUrl/api/pois";
   static String poiById(dynamic id) => "$baseUrl/api/pois/$id";

@@ -21,6 +21,8 @@ class MotionTraceProvider extends ChangeNotifier {
   bool _locationGranted = false;
   bool _notificationGranted = false;
   bool _sensorsGranted = false;
+  bool _cameraGranted = false;
+  bool _storageGranted = false;
   bool _allPermissionsGranted = false;
 
   bool get isInitialized => _isInitialized;
@@ -33,6 +35,8 @@ class MotionTraceProvider extends ChangeNotifier {
   bool get locationGranted => _locationGranted;
   bool get notificationGranted => _notificationGranted;
   bool get sensorsGranted => _sensorsGranted;
+  bool get cameraGranted => _cameraGranted;
+  bool get storageGranted => _storageGranted;
   SensorService get sensorService => _bgService.sensorService;
 
   /// Initialize — called on app startup
@@ -60,8 +64,11 @@ class MotionTraceProvider extends ChangeNotifier {
     _notificationGranted = await Permission.notification.isGranted;
     _sensorsGranted = await Permission.sensors.isGranted ||
         await Permission.sensors.status.then((s) => s.isGranted || s.isLimited);
-    _allPermissionsGranted =
-        _locationGranted && _notificationGranted && _sensorsGranted;
+    _cameraGranted = await Permission.camera.isGranted;
+    _storageGranted = await Permission.photos.isGranted ||
+        await Permission.storage.isGranted;
+    _allPermissionsGranted = _locationGranted && _notificationGranted &&
+        _sensorsGranted && _cameraGranted && _storageGranted;
   }
 
   /// Request all permissions after first login.
@@ -83,33 +90,47 @@ class MotionTraceProvider extends ChangeNotifier {
             ),
           ],
         ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'VeloPath needs the following permissions to detect road hazards and keep you safe:',
-              style: TextStyle(fontSize: 14),
-            ),
-            SizedBox(height: 16),
-            _PermissionRow(
-              icon: Icons.location_on,
-              title: 'Location',
-              desc: 'GPS coordinates for mapping road conditions',
-            ),
-            SizedBox(height: 10),
-            _PermissionRow(
-              icon: Icons.sensors,
-              title: 'Motion Sensors',
-              desc: 'Accelerometer, gyroscope to detect potholes & bumps',
-            ),
-            SizedBox(height: 10),
-            _PermissionRow(
-              icon: Icons.notifications,
-              title: 'Notifications',
-              desc: 'Show tracking status while collecting data',
-            ),
-          ],
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'VeloPath needs the following permissions to work properly:',
+                style: TextStyle(fontSize: 14),
+              ),
+              SizedBox(height: 16),
+              _PermissionRow(
+                icon: Icons.location_on,
+                title: 'Location',
+                desc: 'GPS coordinates for mapping road conditions',
+              ),
+              SizedBox(height: 10),
+              _PermissionRow(
+                icon: Icons.sensors,
+                title: 'Motion Sensors',
+                desc: 'Accelerometer, gyroscope to detect potholes & bumps',
+              ),
+              SizedBox(height: 10),
+              _PermissionRow(
+                icon: Icons.camera_alt,
+                title: 'Camera',
+                desc: 'Take photos for POI submissions and profile',
+              ),
+              SizedBox(height: 10),
+              _PermissionRow(
+                icon: Icons.photo_library,
+                title: 'Storage / Photos',
+                desc: 'Access gallery for POI images',
+              ),
+              SizedBox(height: 10),
+              _PermissionRow(
+                icon: Icons.notifications,
+                title: 'Notifications',
+                desc: 'Show tracking status while collecting data',
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -148,12 +169,25 @@ class MotionTraceProvider extends ChangeNotifier {
     var sensorStatus = await Permission.sensors.request();
     _sensorsGranted = sensorStatus.isGranted || sensorStatus.isLimited;
 
-    // 3. Notifications (Android 13+)
+    // 3. Camera
+    var cameraStatus = await Permission.camera.request();
+    _cameraGranted = cameraStatus.isGranted;
+
+    // 4. Storage / Photos
+    var storageStatus = await Permission.photos.request();
+    _storageGranted = storageStatus.isGranted;
+    if (!_storageGranted) {
+      // Fallback for older Android
+      var legacyStorage = await Permission.storage.request();
+      _storageGranted = legacyStorage.isGranted;
+    }
+
+    // 5. Notifications (Android 13+)
     var notifStatus = await Permission.notification.request();
     _notificationGranted = notifStatus.isGranted;
 
-    _allPermissionsGranted =
-        _locationGranted && _notificationGranted && _sensorsGranted;
+    _allPermissionsGranted = _locationGranted && _notificationGranted &&
+        _sensorsGranted && _cameraGranted && _storageGranted;
   }
 
   /// Verify all permissions are granted before starting a ride.
@@ -167,6 +201,8 @@ class MotionTraceProvider extends ChangeNotifier {
     final missing = <String>[];
     if (!_locationGranted) missing.add('Location');
     if (!_sensorsGranted) missing.add('Motion Sensors');
+    if (!_cameraGranted) missing.add('Camera');
+    if (!_storageGranted) missing.add('Storage');
     if (!_notificationGranted) missing.add('Notifications');
 
     final retry = await showDialog<bool>(

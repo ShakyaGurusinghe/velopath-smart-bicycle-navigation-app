@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../routes/app_routes.dart';
 import '../widgets/device_helper.dart';
-import '../modules/motion_trace/widgets/tracking_card.dart';
 import '../modules/motion_trace/providers/motion_trace_provider.dart';
 import '../providers/auth_provider.dart';
+import '../config/api_config.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -42,6 +42,14 @@ class _DashboardContentState extends State<DashboardContent> {
       const Duration(seconds: 5),
       (_) => loadDashboard(),
     );
+
+    // Auto-request all permissions on first home page load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final motionTrace = context.read<MotionTraceProvider>();
+      if (!motionTrace.allPermissionsGranted) {
+        motionTrace.requestPermissionsAfterLogin(context);
+      }
+    });
   }
 
   @override
@@ -60,7 +68,7 @@ class _DashboardContentState extends State<DashboardContent> {
 
     try {
       final res = await http.get(
-        Uri.parse("http://192.168.8.118:5001/api/dashboard/$deviceId"),
+        Uri.parse(ApiConfig.dashboard(deviceId)),
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -84,7 +92,6 @@ class _DashboardContentState extends State<DashboardContent> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final motionTrace = context.watch<MotionTraceProvider>();
     final username = auth.user?.username ?? "Rider";
     final reputation = auth.user?.reputationScore ?? 5.0;
     final contributions = auth.user?.totalContributions ?? 0;
@@ -154,42 +161,7 @@ class _DashboardContentState extends State<DashboardContent> {
                                 ],
                               ),
                             ),
-                            // Tracking indicator
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: motionTrace.isTracking
-                                    ? Colors.green.withValues(alpha: 0.3)
-                                    : Colors.white12,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: motionTrace.isTracking
-                                          ? Colors.greenAccent
-                                          : Colors.white54,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    motionTrace.isTracking
-                                        ? "Tracking"
-                                        : "Idle",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+
                           ],
                         ),
                         const SizedBox(height: 18),
@@ -318,23 +290,6 @@ class _DashboardContentState extends State<DashboardContent> {
                     children: [
                       Expanded(
                         child: _ActionCard(
-                          icon: Icons.sensors,
-                          label: "Track Road",
-                          color: motionTrace.isTracking
-                              ? Colors.green
-                              : Colors.blueGrey,
-                          onTap: () {
-                            if (motionTrace.isTracking) {
-                              motionTrace.stopTracking();
-                            } else {
-                              motionTrace.requestConsentAndStart(context);
-                            }
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _ActionCard(
                           icon: Icons.explore,
                           label: "Explore POIs",
                           color: Colors.deepPurple,
@@ -354,20 +309,6 @@ class _DashboardContentState extends State<DashboardContent> {
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // ─── Road Tracking Card ───
-                  const Text(
-                    "Road Condition Tracking",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A2E),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const TrackingCard(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -523,7 +464,7 @@ class _PlaceSearchDelegate extends SearchDelegate<String> {
     if (_loaded) return _cachedPois;
     try {
       final res = await http.get(
-        Uri.parse("http://192.168.8.118:5001/api/pois"),
+        Uri.parse(ApiConfig.pois),
       ).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final list = jsonDecode(res.body) as List;

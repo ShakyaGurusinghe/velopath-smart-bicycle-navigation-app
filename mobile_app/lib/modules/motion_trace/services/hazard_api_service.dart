@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/sensor_reading.dart';
+import '../../../../config/api_config.dart';
 
 /// Service for communicating with the VeloPath backend hazard detection API.
 class HazardApiService {
-  static const String baseUrl = 'http://192.168.8.118:5001';
+  static String get baseUrl => ApiConfig.baseUrl;
 
   static Future<Map<String, dynamic>> checkHealth() async {
     try {

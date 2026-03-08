@@ -8,6 +8,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import '../../../../config/api_config.dart';
 
 enum RouteProfile { shortest, safest, scenic, balanced }
 
@@ -34,7 +35,7 @@ class ColoredSegment {
 }
 
 class RoutingEngineProvider extends ChangeNotifier {
-  static const _backendBaseUrl = "http://192.168.8.118:5001";
+  static String get _backendBaseUrl => ApiConfig.baseUrl;
   static const _geoapifyKey = "32bb4486a6864bbbb20904ff39d832ca";
 
   final FlutterTts _tts = FlutterTts();
@@ -222,7 +223,7 @@ class RoutingEngineProvider extends ChangeNotifier {
       final profileParam = _profileToParam(_activeProfile);
 
       final url = Uri.parse(
-        "$_backendBaseUrl/api/pg-routing/route"
+        "${_backendBaseUrl}/api/pg-routing/route"
         "?startLon=${_startPoint!.longitude}"
         "&startLat=${_startPoint!.latitude}"
         "&endLon=${_endPoint!.longitude}"

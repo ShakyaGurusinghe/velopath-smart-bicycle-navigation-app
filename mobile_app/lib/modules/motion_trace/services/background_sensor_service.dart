@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'sensor_service.dart';
 import 'sensor_storage_service.dart';
 import 'hazard_api_service.dart';
@@ -20,6 +21,7 @@ class BackgroundSensorService {
 
   final SensorService _sensorService = SensorService();
   Timer? _uploadTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   bool _isRunning = false;
   String? _currentSessionId;
@@ -44,6 +46,18 @@ class BackgroundSensorService {
         ?.createNotificationChannel(channel);
 
     await _sensorService.checkSensors();
+
+    // Listen for connectivity changes to sync pending data
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasConnection = results.any((r) =>
+          r == ConnectivityResult.wifi || r == ConnectivityResult.mobile);
+      if (hasConnection) {
+        syncPendingData();
+      }
+    });
+
+    // Try to sync any pending sessions from previous rides
+    syncPendingData();
   }
 
   Future<bool> startTracking() async {
@@ -98,10 +112,25 @@ class BackgroundSensorService {
     }
   }
 
+  /// Check if there is internet connectivity
+  Future<bool> _hasConnectivity() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      return results.any((r) =>
+          r == ConnectivityResult.wifi || r == ConnectivityResult.mobile);
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _periodicUpload() async {
     if (_currentSessionId == null) return;
     await _saveToLocal();
-    await _uploadSession();
+    if (await _hasConnectivity()) {
+      await _uploadSession();
+    } else {
+      debugPrint('[BackgroundSensor] No connectivity, data saved locally');
+    }
   }
 
   Future<void> _uploadSession() async {
@@ -109,9 +138,44 @@ class BackgroundSensorService {
     try {
       final readings = SensorStorageService.getSessionData(_currentSessionId!);
       if (readings.isEmpty) return;
-      await HazardApiService.uploadSession(readings, 'predict');
+      final result = await HazardApiService.uploadSession(readings, 'predict');
+      if (result.success) {
+        // Clear local data after successful upload
+        await SensorStorageService.deleteSession(_currentSessionId!);
+        debugPrint('[BackgroundSensor] Upload successful, local data cleared');
+      }
     } catch (e) {
-      debugPrint('Upload error: $e');
+      debugPrint('[BackgroundSensor] Upload error (will retry): $e');
+    }
+  }
+
+  /// Sync any pending locally-stored sessions (from offline rides)
+  Future<void> syncPendingData() async {
+    if (!await _hasConnectivity()) return;
+    try {
+      final sessionKeys = SensorStorageService.getAllSessionKeys();
+      if (sessionKeys.isEmpty) return;
+      debugPrint('[BackgroundSensor] Syncing ${sessionKeys.length} pending sessions...');
+      for (final key in sessionKeys) {
+        // Skip the active session — it's still collecting
+        if (key == _currentSessionId && _isRunning) continue;
+        final readings = SensorStorageService.getSessionData(key);
+        if (readings.isEmpty) {
+          await SensorStorageService.deleteSession(key);
+          continue;
+        }
+        try {
+          final result = await HazardApiService.uploadSession(readings, 'predict');
+          if (result.success) {
+            await SensorStorageService.deleteSession(key);
+            debugPrint('[BackgroundSensor] Synced session $key');
+          }
+        } catch (e) {
+          debugPrint('[BackgroundSensor] Failed to sync session $key: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('[BackgroundSensor] Sync error: $e');
     }
   }
 
@@ -132,6 +196,7 @@ class BackgroundSensorService {
   }
 
   void dispose() {
+    _connectivitySub?.cancel();
     stopTracking(uploadOnStop: false);
   }
 }

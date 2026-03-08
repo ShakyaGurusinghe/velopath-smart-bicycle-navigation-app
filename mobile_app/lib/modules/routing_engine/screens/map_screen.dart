@@ -172,17 +172,21 @@ class _MapScreenState extends State<MapScreen> {
                       icon: const Icon(Icons.navigation),
                       label: const Text("Start Ride"),
                       onPressed: () async {
-                        // Prompt rider for sensor data collection consent
+                        // Start sensor data collection (permissions already granted on home)
                         final motionTrace =
                             context.read<MotionTraceProvider>();
-                        if (!motionTrace.consentGiven) {
-                          await motionTrace
-                              .requestConsentAndStart(context);
-                        } else if (!motionTrace.isTracking) {
-                          await motionTrace.startTracking();
+                        if (!motionTrace.isTracking) {
+                          // Verify permissions are still granted
+                          final permsOk = await motionTrace
+                              .ensurePermissionsForRide(context);
+                          if (permsOk) {
+                            // Auto-grant consent (already explained at login)
+                            motionTrace.setConsent(true);
+                            await motionTrace.startTracking();
+                          }
                         }
 
-                        // Start navigation regardless of consent choice
+                        // Start navigation regardless of sensor status
                         await p.startNavigation();
                         if (p.currentLocation != null) {
                           _recenterSafe(p.currentLocation!, 16);
@@ -195,7 +199,7 @@ class _MapScreenState extends State<MapScreen> {
                       icon: const Icon(Icons.stop),
                       label: const Text("End Ride"),
                       onPressed: () async {
-                        // Stop sensor tracking if active
+                        // Stop sensor tracking and trigger upload
                         final motionTrace =
                             context.read<MotionTraceProvider>();
                         if (motionTrace.isTracking) {

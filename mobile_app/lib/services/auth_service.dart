@@ -3,8 +3,10 @@ import 'dart:io';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 
+import '../config/api_config.dart';
+
 class AuthService {
-  static const String baseUrl = "http://192.168.8.118:5001/api/auth";
+  static String get baseUrl => "${ApiConfig.baseUrl}/api/auth";
 
   /// LOGIN — returns full response with token + user data
   static Future<Map<String, dynamic>> login({

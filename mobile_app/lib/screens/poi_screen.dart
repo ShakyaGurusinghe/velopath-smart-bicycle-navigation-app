@@ -603,7 +603,7 @@ class _PoiScreenState extends State<PoiScreen> {
             padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
             child: TextField(
               decoration: InputDecoration(
-                hintText: "Search by type (hospital, school…)",
+                hintText: "Search by type (park,cafe…)",
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8)),

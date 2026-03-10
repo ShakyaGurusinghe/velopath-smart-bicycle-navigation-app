@@ -76,7 +76,6 @@ class _PoiScreenState extends State<PoiScreen> {
   }
 
   /// Mirrors the backend qualityTier logic.
-  /// Returns "new" if no votes, otherwise "high"/"medium"/"low".
   String _recalculateTier(double score, int voteCount) {
     if (voteCount == 0) return "new";
     final normalizedScore = (score / 5) * 100;
@@ -99,17 +98,15 @@ class _PoiScreenState extends State<PoiScreen> {
 
       final matchesSearch = amenity.contains(q) || name.contains(q);
 
-      // Filter by tier — "new" means strictly zero votes
       bool matchesTierFilter;
       if (selectedTier == "All") {
         matchesTierFilter = true;
       } else if (selectedTier == "new") {
-        matchesTierFilter = voteCount == 0; // only genuinely unvoted POIs
+        matchesTierFilter = voteCount == 0;
       } else {
         matchesTierFilter = voteCount > 0 && tier == selectedTier;
       }
 
-      // Unvoted POIs are always shown; low-tier POIs respect the toggle
       final matchesVisibility =
           voteCount == 0 || showLowQuality || tier != "low";
 
@@ -480,8 +477,6 @@ class _PoiScreenState extends State<PoiScreen> {
 
   int get _lowQualityTotal => pois.where((p) => (p['tier'] ?? 'new') == 'low').length;
 
-  int get _newTotal => pois.where((p) => _parseInt(p['vote_count']) == 0).length;
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -526,7 +521,7 @@ class _PoiScreenState extends State<PoiScreen> {
       ),
       body: Column(
         children: [
-          // ── Minimalist Filter Section ──
+          // ── Filter Section ──
           Container(
             padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 8),
             decoration: BoxDecoration(
@@ -542,6 +537,7 @@ class _PoiScreenState extends State<PoiScreen> {
             ),
             child: Column(
               children: [
+                // District + Tier dropdowns
                 Row(
                   children: [
                     Expanded(
@@ -567,7 +563,14 @@ class _PoiScreenState extends State<PoiScreen> {
                               "Trincomalee", "Kurunegala", "Puttalam", "Anuradhapura",
                               "Polonnaruwa", "Badulla", "Monaragala", "Ratnapura",
                               "Kegalle",
-                            ].map((d) => DropdownMenuItem(value: d, child: Text(d, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87), overflow: TextOverflow.ellipsis))).toList(),
+                            ].map((d) => DropdownMenuItem(
+                              value: d,
+                              child: Text(
+                                d,
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            )).toList(),
                             onChanged: (val) {
                               if (val == null) return;
                               setState(() => selectedDistrict = val);
@@ -594,11 +597,11 @@ class _PoiScreenState extends State<PoiScreen> {
                             dropdownColor: inputBgColor,
                             icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                             items: [
-                              DropdownMenuItem(value: "All", child: Text("All Tiers", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87))),
-                              DropdownMenuItem(value: "new", child: Text("New", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blue))),
-                              DropdownMenuItem(value: "high", child: Text("High", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green))),
-                              DropdownMenuItem(value: "medium", child: Text("Medium", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.orange))),
-                              DropdownMenuItem(value: "low", child: Text("Low", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey))),
+                              DropdownMenuItem(value: "All",    child: Text("All Tiers", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: isDark ? Colors.white : Colors.black87))),
+                              DropdownMenuItem(value: "new",    child: Text("New",    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.blue))),
+                              DropdownMenuItem(value: "high",   child: Text("High",   style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.green))),
+                              DropdownMenuItem(value: "medium", child: Text("Medium", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.orange))),
+                              DropdownMenuItem(value: "low",    child: Text("Low",    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey))),
                             ],
                             onChanged: (val) {
                               if (val == null) return;
@@ -612,6 +615,7 @@ class _PoiScreenState extends State<PoiScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
+                // Search + location button
                 Row(
                   children: [
                     Expanded(
@@ -655,96 +659,9 @@ class _PoiScreenState extends State<PoiScreen> {
             ),
           ),
 
-          // ── Row 2: Tier dropdown ──────────────────────────────────
+          // ── Stats badges + Show/Hide Low toggle ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            child: DropdownButtonFormField<String>(
-              value: selectedTier,
-              decoration: const InputDecoration(
-                labelText: "Quality Tier",
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                DropdownMenuItem(
-                  value: "All",
-                  child: Row(children: [
-                    const Icon(Icons.layers,
-                        size: 16, color: Colors.blueGrey),
-                    const SizedBox(width: 6),
-                    const Text("All Tiers"),
-                  ]),
-                ),
-                DropdownMenuItem(
-                  value: "new",
-                  child: Row(children: [
-                    const Icon(Icons.fiber_new_rounded,
-                        size: 16, color: Colors.blue),
-                    const SizedBox(width: 6),
-                    const Text("New (Unrated)"),
-                  ]),
-                ),
-                DropdownMenuItem(
-                  value: "high",
-                  child: Row(children: [
-                    Icon(Icons.star_rounded,
-                        size: 16, color: Colors.green[600]),
-                    const SizedBox(width: 6),
-                    const Text("High Quality"),
-                  ]),
-                ),
-                DropdownMenuItem(
-                  value: "medium",
-                  child: Row(children: [
-                    const Icon(Icons.star_half_rounded,
-                        size: 16, color: Colors.orange),
-                    const SizedBox(width: 6),
-                    const Text("Medium Quality"),
-                  ]),
-                ),
-                DropdownMenuItem(
-                  value: "low",
-                  child: Row(children: [
-                    const Icon(Icons.star_border_rounded,
-                        size: 16, color: Colors.grey),
-                    const SizedBox(width: 6),
-                    const Text("Low Quality"),
-                  ]),
-                ),
-              ],
-              onChanged: (val) {
-                if (val == null) return;
-                setState(() => selectedTier = val);
-                applyFilters();
-              },
-            ),
-          ),
-
-          // ── Row 3: Search field ───────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: "Search by type (park,cafe…)",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                isDense: true,
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              onChanged: (val) {
-                searchQuery = val.toLowerCase();
-                applyFilters();
-              },
-            ),
-          ),
-
-          // ── Row 4: Stats badges + toggle ─── uses Wrap ───────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -753,7 +670,7 @@ class _PoiScreenState extends State<PoiScreen> {
                     spacing: 6,
                     runSpacing: 4,
                     children: [
-                      if (_newTotal > 0)
+                      if (_lowQualityTotal > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -765,7 +682,10 @@ class _PoiScreenState extends State<PoiScreen> {
                             children: [
                               Icon(Icons.visibility_off, size: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
                               const SizedBox(width: 4),
-                              Text("$_lowQualityTotal low hidden", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700)),
+                              Text(
+                                "$_lowQualityTotal low hidden",
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+                              ),
                             ],
                           ),
                         ),
@@ -793,7 +713,7 @@ class _PoiScreenState extends State<PoiScreen> {
 
           if (!isLoading)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -824,7 +744,10 @@ class _PoiScreenState extends State<PoiScreen> {
                                   setState(() => showLowQuality = true);
                                   applyFilters();
                                 },
-                                child: const Text("Show low quality POIs too?", style: TextStyle(color: ThemeProvider.primaryDarkBlue, fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  "Show low quality POIs too?",
+                                  style: TextStyle(color: ThemeProvider.primaryDarkBlue, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ]
                           ],
